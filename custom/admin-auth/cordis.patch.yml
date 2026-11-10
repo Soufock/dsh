@@ -1,0 +1,9 @@
+# Mount with: dsh web --patch /absolute/path/to/custom/admin-auth/cordis.patch.yml
+# Credentials live in $DSH_HOME/admin-auth.json (default: ~/.dsh/admin-auth.json).
+- insert:
+    - id: soufock-admin-auth
+      name: './plugin.mjs'
+      config:
+        maxAttempts: 10
+        windowSeconds: 60
+        maxBodyBytes: 8192

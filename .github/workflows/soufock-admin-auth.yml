@@ -1,0 +1,48 @@
+name: Soufock administrator login
+
+on:
+  push:
+    paths:
+      - custom/admin-auth/**
+      - package.json
+      - .github/workflows/soufock-admin-auth.yml
+  pull_request:
+    paths:
+      - custom/admin-auth/**
+      - package.json
+      - .github/workflows/soufock-admin-auth.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authentication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install the matching upstream runtime
+        run: |
+          DSH_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('package.json','utf8')).version")
+          npm install --global "@deepseek-ai/dsh@$DSH_VERSION" --allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@google/genai,protobufjs
+      - name: Verify password and token authentication
+        run: node --test custom/admin-auth/tests/*.test.mjs
+      - name: Install the browser test runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/dsh-browser" playwright@1.65.0
+          "$RUNNER_TEMP/dsh-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify native browser login
+        env:
+          DSH_PLAYWRIGHT_MODULE: ${{ runner.temp }}/dsh-browser/node_modules/playwright/index.mjs
+          DSH_BROWSER_ARTIFACTS: ${{ runner.temp }}/dsh-login-review
+        run: node custom/admin-auth/tests/browser-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: administrator-login-browser
+          path: ${{ runner.temp }}/dsh-login-review
+          if-no-files-found: ignore
